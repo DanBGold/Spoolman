@@ -26,6 +26,19 @@ PathLike = Union[str, "os.PathLike[str]"]
 Scope = MutableMapping[str, Any]
 
 
+# HTML documents (and the service worker / manifest) name the hashed asset files
+# of one particular build. Without an explicit Cache-Control, browsers cache them
+# heuristically from Last-Modified and keep showing the previous build after an
+# update. "no-cache" makes the browser revalidate (a cheap 304 when unchanged);
+# the hashed files under _app/immutable stay cacheable as before.
+REVALIDATE_HEADERS = {"Cache-Control": "no-cache"}
+_REVALIDATE_NAMES = {"sw.js", "manifest.webmanifest", "registerSW.js"}
+
+
+def _must_revalidate(name: str) -> bool:
+    return name.endswith(".html") or name in _REVALIDATE_NAMES
+
+
 def _require_client_build(directory: str) -> None:
     """Fail with an actionable message when the client bundle hasn't been built.
 
@@ -203,11 +216,18 @@ class SinglePageApplication(StaticFiles):
         # If full_path points to the fallback document and we have a rewritten
         # version of it, return that instead of the raw file.
         if self.tweaked_html and Path(full_path).name == self.fallback_document:
-            return Response(self.tweaked_html, status_code=status_code, media_type="text/html")
+            return Response(
+                self.tweaked_html,
+                status_code=status_code,
+                media_type="text/html",
+                headers=REVALIDATE_HEADERS,
+            )
 
         # Starlette >=1.x dropped the `method` kwarg from FileResponse; it now derives
         # HEAD handling from the request scope internally when the response is called.
         response = FileResponse(full_path, status_code=status_code, stat_result=stat_result)
+        if _must_revalidate(Path(full_path).name):
+            response.headers.update(REVALIDATE_HEADERS)
         if self.is_not_modified(response.headers, request_headers):
             return NotModifiedResponse(response.headers)
         return response
