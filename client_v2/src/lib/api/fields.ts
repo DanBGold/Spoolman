@@ -27,6 +27,8 @@ export interface FieldParams {
 	default_value?: string | null;
 	choices?: string[] | null;
 	multi_choice?: boolean | null;
+	/** Spool fields only: part of the location when locations come from extra fields. */
+	location?: boolean;
 }
 
 export interface FieldDef extends FieldParams {

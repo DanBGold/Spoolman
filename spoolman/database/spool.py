@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, joinedload
 from sqlalchemy.sql.functions import coalesce
 
+from spoolman import spool_location
 from spoolman.api.v1.models import (
     EventType,
     Spool,
@@ -106,6 +107,14 @@ async def create(
         first_used = utc_timezone_naive(first_used)
     if last_used is not None:
         last_used = utc_timezone_naive(last_used)
+
+    # With locations built from extra fields, whatever location was sent is replaced.
+    location_config = await spool_location.get_config(db)
+    if location_config is not None:
+        location = spool_location.compose(
+            {k: v for k, v in (extra or {}).items() if v is not None},
+            location_config,
+        )
 
     spool = models.Spool(
         filament=filament_item,
@@ -289,6 +298,11 @@ EXTRA_FIELD_PREFIX = "extra."
 
 # Mirrors the Spool.location column width, so an over-long rename is a 400 and not a 500.
 LOCATION_MAX_LENGTH = 64
+
+LOCATION_IS_COMPUTED = (
+    "Locations are built from spool extra fields (setting location_from_extra_fields), so they "
+    "cannot be renamed directly. Change the extra field values instead."
+)
 
 # Extra fields whose value is a single plain string, and which can therefore be grouped on and
 # renamed by value. Multi-choice is excluded because its value is a JSON *array*: two spools
@@ -1095,6 +1109,11 @@ async def update(
             spool.extra.extend([models.SpoolField(key=k, value=v) for k, v in v.items() if v is not None])
         else:
             setattr(spool, k, v)
+    # With locations built from extra fields, the location always follows them: recomputed
+    # on every edit, and a location sent directly in the patch does not stick.
+    location_config = await spool_location.get_config(db)
+    if location_config is not None:
+        spool.location = spool_location.compose(spool_location.extra_of(spool.extra), location_config)
     await db.commit()
     await spool_changed(spool, EventType.UPDATED)
     return spool
@@ -1355,6 +1374,8 @@ async def rename_location(
     new_name: str,
 ) -> None:
     """Rename all spools with the current location name to the new name."""
+    if await spool_location.is_enabled(db):
+        raise ValueError(LOCATION_IS_COMPUTED)
     await db.execute(
         sqlalchemy.update(models.Spool).where(models.Spool.location == current_name).values(location=new_name),
     )
@@ -1388,6 +1409,8 @@ async def rename_field_value(
     Returns the number of spools changed.
     """
     if field == "location":
+        if await spool_location.is_enabled(db):
+            raise ValueError(LOCATION_IS_COMPUTED)
         if len(new_value) > LOCATION_MAX_LENGTH:
             raise ValueError(f"A location can be at most {LOCATION_MAX_LENGTH} characters.")
         stmt = sqlalchemy.update(models.Spool).where(models.Spool.location == value).values(location=new_value)
@@ -1413,4 +1436,10 @@ async def rename_field_value(
 
     result = await db.execute(stmt)
     await db.commit()
+    if field.startswith(EXTRA_FIELD_PREFIX):
+        # A renamed value may be part of computed locations; rebuild them from the new values.
+        config = await spool_location.get_config(db)
+        if config is not None and any(f.key == field.removeprefix(EXTRA_FIELD_PREFIX) for f in config.fields):
+            db.expire_all()
+            await spool_location.recompute_all(db)
     return result.rowcount

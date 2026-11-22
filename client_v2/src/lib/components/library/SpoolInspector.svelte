@@ -443,15 +443,24 @@
 		<div class="col">
 			<SectionLabel>{m['library.section.spool']()}</SectionLabel>
 			<FieldGrid>
-				<Field label={m['spool.fields.location']()} help={m['spool.fieldsHelp.location']()}>
-					<Combobox
-						value={spool.location}
-						placeholder={m['library.noLocation']()}
-						options={locationOptions}
-						underline
-						oninput={(v) => set({ location: v })}
-					/>
-				</Field>
+				{#if settings.locationFromExtraFields}
+					<!-- Built by the server from the extra fields marked "Location"; read-only here. -->
+					<Field label={m['spool.fields.location']()} help={m['spool.locationComputed']()}>
+						<span class="computed-loc" class:none={!spool.location} title={m['spool.locationComputed']()}
+							>{spool.location || m['library.noLocation']()}</span
+						>
+					</Field>
+				{:else}
+					<Field label={m['spool.fields.location']()} help={m['spool.fieldsHelp.location']()}>
+						<Combobox
+							value={spool.location}
+							placeholder={m['library.noLocation']()}
+							options={locationOptions}
+							underline
+							oninput={(v) => set({ location: v })}
+						/>
+					</Field>
+				{/if}
 				<Field label={m['spool.fields.lotNr']()} help={m['spool.fieldsHelp.lotNr']()}>
 					<EditableField value={spool.lot} mono oninput={(v) => set({ lot: v })} />
 				</Field>
@@ -823,5 +832,14 @@
 			min-width: 44px;
 			justify-content: center;
 		}
+	}
+	.computed-loc {
+		display: block;
+		padding: 3px 0;
+		color: var(--text);
+		font-size: inherit;
+	}
+	.computed-loc.none {
+		color: var(--text-faint);
 	}
 </style>

@@ -1,4 +1,5 @@
 import { getSettings, setSetting, parseSetting } from '$lib/api/settings';
+import { postJson } from '$lib/api/http';
 import { parseDecimal } from '$lib/utils/numeric';
 
 // Server-backed user settings (currency, round_prices, base_url) plus one
@@ -11,6 +12,9 @@ class Settings {
 	currency = $state('EUR');
 	roundPrices = $state(false);
 	baseUrl = $state('');
+	/** Spool locations are built from the spool extra fields flagged "Location". */
+	locationFromExtraFields = $state(false);
+	locationSeparator = $state(' - ');
 	lowThreshold = $state(150);
 	loaded = $state(false);
 
@@ -25,6 +29,8 @@ class Settings {
 			this.currency = parseSetting(s.currency, 'EUR');
 			this.roundPrices = parseSetting(s.round_prices, false);
 			this.baseUrl = parseSetting(s.base_url, '');
+			this.locationFromExtraFields = parseSetting(s.location_from_extra_fields, false);
+			this.locationSeparator = parseSetting(s.location_separator, ' - ');
 		} catch (e) {
 			console.error('Failed to load settings', e);
 		} finally {
@@ -43,6 +49,19 @@ class Settings {
 	async setBaseUrl(v: string) {
 		this.baseUrl = v;
 		await setSetting('base_url', v);
+	}
+	async setLocationFromExtraFields(v: boolean) {
+		this.locationFromExtraFields = v;
+		await setSetting('location_from_extra_fields', v);
+	}
+	async setLocationSeparator(v: string) {
+		this.locationSeparator = v;
+		await setSetting('location_separator', v);
+	}
+	/** Rebuild every spool's location from its extra fields now; returns how many changed. */
+	async applyLocationsFromExtraFields(): Promise<number> {
+		const r = await postJson<{ spools_updated: number }>('/location/apply-extra-fields', {});
+		return r.spools_updated;
 	}
 	setLowThreshold(v: number) {
 		this.lowThreshold = v;

@@ -74,6 +74,10 @@ register_setting("extra_fields_spool", SettingType.ARRAY, json.dumps([]))
 register_setting("base_url", SettingType.STRING, json.dumps(""))
 
 register_setting("locations", SettingType.ARRAY, json.dumps([]))
+# When on, a spool's location is built from its extra fields that are flagged "location",
+# joined by location_separator, and can no longer be set directly (see spoolman.spool_location).
+register_setting("location_from_extra_fields", SettingType.BOOLEAN, json.dumps(obj=False))
+register_setting("location_separator", SettingType.STRING, json.dumps(" - "))
 register_setting("locations_spoolorders", SettingType.OBJECT, json.dumps({}))
 
 # The dashboard groups spools by a field the user picks (location, lot_nr, material, or a spool

@@ -390,7 +390,7 @@
 				initial_weight: parseDecimal(netWeight) ?? undefined,
 				spool_weight: parseDecimal(spoolWeight) ?? undefined,
 				price: parseDecimal(price) ?? undefined,
-				location: location.trim() || undefined,
+				location: settings.locationFromExtraFields ? undefined : location.trim() || undefined,
 				lot_nr: lot.trim() || undefined,
 				comment: comment.trim() || undefined
 			};
@@ -778,16 +778,21 @@
 					<div class="form where">
 						<label>
 							{m['spool.fields.location']()}
-							<Combobox
-								value={location}
-								options={locations}
-								placeholder={m['add.locationPlaceholder']()}
-								oninput={(v) => (location = v)}
-							/>
-							<!-- Always-on rather than behind the ⓘ used elsewhere: "Location" reads as
-							     metadata until you're told it means the physical shelf, and testers
-							     didn't open a popup to find that out. -->
-							<span class="hint">{m['add.locationHint']()}</span>
+							{#if settings.locationFromExtraFields}
+								<!-- The server builds it from the extra fields marked "Location". -->
+								<span class="hint">{m['spool.locationComputed']()}</span>
+							{:else}
+								<Combobox
+									value={location}
+									options={locations}
+									placeholder={m['add.locationPlaceholder']()}
+									oninput={(v) => (location = v)}
+								/>
+								<!-- Always-on rather than behind the ⓘ used elsewhere: "Location" reads as
+								     metadata until you're told it means the physical shelf, and testers
+								     didn't open a popup to find that out. -->
+								<span class="hint">{m['add.locationHint']()}</span>
+							{/if}
 						</label>
 						<label>{m['spool.fields.lotNr']()}<input class="mono" bind:value={lot} placeholder="—" /></label>
 					</div>

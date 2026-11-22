@@ -4,6 +4,7 @@ import { FieldType, type FieldDef } from '$lib/api/fields';
 import { spoolSource } from '$lib/api/spoolSource';
 import { inventory } from '$lib/stores/inventory.svelte';
 import * as m from '$lib/paraglide/messages';
+import { settings } from '$lib/stores/settings.svelte';
 
 // The dashboard groups spools into cards by ONE field, and dragging a spool between
 // cards writes that field. This module is the list of fields that can play that role,
@@ -41,6 +42,8 @@ export interface DashboardField {
 	rename(from: GroupKey, to: GroupKey): Promise<void>;
 	/** Fixed set of permitted values (single-choice fields); undefined means free text. */
 	choices?: string[];
+	/** Values can't be assigned or renamed from the board (locations built from extra fields). */
+	readonly readOnly?: boolean;
 }
 
 const LOCATION: DashboardField = {
@@ -56,6 +59,11 @@ const LOCATION: DashboardField = {
 	},
 	rename: async (from, to) => {
 		await spoolSource.renameFieldValue('location', from, to);
+	},
+	// With locations built from extra fields the server owns them: drag the spool on the
+	// board of one of those fields instead.
+	get readOnly() {
+		return settings.locationFromExtraFields;
 	}
 };
 

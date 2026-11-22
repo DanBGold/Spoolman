@@ -6,6 +6,7 @@
 	import ScannerSettings from '$components/settings/ScannerSettings.svelte';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import { settings } from '$lib/stores/settings.svelte';
+	import { toasts } from '$lib/stores/toasts.svelte';
 	import { theme, type ThemePref } from '$lib/stores/theme.svelte';
 	import { locales, getLocale, setLocale, isLocale } from '$lib/paraglide/runtime.js';
 	import * as m from '$lib/paraglide/messages';
@@ -34,6 +35,29 @@
 	function saveCurrency(v: string) {
 		const code = v.trim().toUpperCase();
 		if (/^[A-Z]{3}$/.test(code)) trackSave(settings.setCurrency(code));
+	}
+	// Turning on extra-field locations offers to rebuild every spool's location right away;
+	// declining leaves them as they are until each spool is next edited.
+	async function toggleLocationFromExtraFields(on: boolean) {
+		let saved = true;
+		await trackSave(
+			settings.setLocationFromExtraFields(on).catch((e) => {
+				saved = false;
+				throw e;
+			})
+		);
+		if (!saved || !on || !confirm(m['settings.general.locationFromExtraFields.applyNow']())) return;
+		try {
+			const count = await settings.applyLocationsFromExtraFields();
+			toasts.success(m['settings.general.locationFromExtraFields.applied']({ count: String(count) }));
+		} catch (e) {
+			console.error('Failed to apply locations', e);
+			toasts.error(m['settings.general.locationFromExtraFields.applyFailed']());
+		}
+	}
+	// Spaces are part of a separator (" - "), so it is saved exactly as typed.
+	function saveLocationSeparator(v: string) {
+		trackSave(settings.setLocationSeparator(v));
 	}
 	function saveBaseUrl(v: string) {
 		trackSave(settings.setBaseUrl(v.trim()));
@@ -125,6 +149,28 @@
 					checked={settings.roundPrices}
 					onchange={(v) => trackSave(settings.setRoundPrices(v))}
 					ariaLabel={m['settings.general.roundPrices.label']()}
+				/>
+			</SettingRow>
+			<SettingRow
+				title={m['settings.general.locationFromExtraFields.label']()}
+				desc={m['settings.general.locationFromExtraFields.tooltip']()}
+			>
+				<Toggle
+					checked={settings.locationFromExtraFields}
+					onchange={(v) => void toggleLocationFromExtraFields(v)}
+					ariaLabel={m['settings.general.locationFromExtraFields.label']()}
+				/>
+			</SettingRow>
+			<SettingRow
+				title={m['settings.general.locationSeparator.label']()}
+				desc={m['settings.general.locationSeparator.tooltip']()}
+			>
+				<input
+					class="sep mono"
+					aria-label={m['settings.general.locationSeparator.label']()}
+					value={settings.locationSeparator}
+					maxlength="16"
+					onchange={(e) => saveLocationSeparator(e.currentTarget.value)}
 				/>
 			</SettingRow>
 			<SettingRow
@@ -228,6 +274,7 @@
 	}
 	.code,
 	.url,
+	.sep,
 	.num,
 	.lang {
 		background: var(--input-bg);
@@ -244,6 +291,11 @@
 		width: 70px;
 		text-align: center;
 		text-transform: uppercase;
+	}
+	.sep {
+		width: 70px;
+		text-align: center;
+		white-space: pre;
 	}
 	.url {
 		width: 260px;

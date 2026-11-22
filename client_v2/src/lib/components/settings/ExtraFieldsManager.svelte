@@ -82,6 +82,8 @@
 	let choices = $state<string[]>([]);
 	let originalChoices = $state<string[]>([]);
 	let multiChoice = $state(false);
+	/** Spool fields only: part of the location built from extra fields. */
+	let locationFlag = $state(false);
 	let choiceInput = $state('');
 
 	let isChoice = $derived(fieldType === FieldType.choice);
@@ -113,6 +115,7 @@
 		choices = [];
 		originalChoices = [];
 		multiChoice = false;
+		locationFlag = false;
 		choiceInput = '';
 	}
 
@@ -130,6 +133,7 @@
 		choices = [...(f.choices ?? [])];
 		originalChoices = [...(f.choices ?? [])];
 		multiChoice = f.multi_choice ?? false;
+		locationFlag = f.location ?? false;
 		choiceInput = '';
 	}
 
@@ -231,7 +235,8 @@
 			unit: showsUnit && unit.trim() ? unit.trim() : null,
 			default_value: defaultJson ?? null,
 			choices: isChoice ? choices : null,
-			multi_choice: isChoice ? multiChoice : null
+			multi_choice: isChoice ? multiChoice : null,
+			location: entity === 'spool' && locationFlag
 		};
 
 		saving = true;
@@ -292,7 +297,12 @@
 				<div class="row">
 					<span class="c-key mono">{f.key}</span>
 					<span class="c-name"
-						>{f.name}{#if f.unit}<span class="unit"> ({f.unit})</span>{/if}</span
+						>{f.name}{#if f.unit}<span class="unit">
+								({f.unit})</span
+							>{/if}{#if entity === 'spool' && f.location}<span
+								class="loc-tag"
+								title={m['settings.extraFields.locationHint']()}>{m['settings.extraFields.location']()}</span
+							>{/if}</span
 					>
 					<span class="c-type">
 						{FIELD_TYPE_LABELS[f.field_type]()}
@@ -369,6 +379,13 @@
 				<label class="fld">
 					<span>{m['settings.extraFields.params.unit']()}</span>
 					<input class="in" bind:value={unit} placeholder="g, °C…" maxlength="16" />
+				</label>
+			{/if}
+
+			{#if entity === 'spool'}
+				<label class="fld" title={m['settings.extraFields.locationHint']()}>
+					<span>{m['settings.extraFields.location']()}</span>
+					<input type="checkbox" bind:checked={locationFlag} />
 				</label>
 			{/if}
 
@@ -503,6 +520,15 @@
 		font-size: 11px;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
+	}
+	.loc-tag {
+		margin-left: 6px;
+		padding: 1px 6px;
+		border-radius: 4px;
+		font-size: 10.5px;
+		background: var(--accent-wash);
+		color: var(--accent-soft);
+		vertical-align: 1px;
 	}
 	.unit {
 		color: var(--text-dim);

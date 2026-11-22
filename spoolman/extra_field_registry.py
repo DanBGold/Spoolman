@@ -50,6 +50,13 @@ class ExtraFieldParameters(BaseModel):
         min_length=1,
     )
     multi_choice: bool | None = Field(None, description="Whether multiple choices can be selected")
+    location: bool = Field(
+        default=False,
+        description=(
+            "Spool fields only: whether this field is part of the spool's location when the "
+            "location_from_extra_fields setting is on."
+        ),
+    )
 
 
 class ExtraField(ExtraFieldParameters):

@@ -551,7 +551,7 @@
 	 * there. Everything else is fair game — the backend moves a whole group in one request.
 	 */
 	function canRename(card: Card): boolean {
-		return card.key !== UNASSIGNED && !field.choices?.includes(card.key);
+		return !field.readOnly && card.key !== UNASSIGNED && !field.choices?.includes(card.key);
 	}
 
 	function startEdit(card: Card) {
@@ -664,10 +664,10 @@
 			{/if}
 		</div>
 
-		{#if !isEmpty}
+		{#if !isEmpty && !field.readOnly}
 			<span class="hint">{m['dashboard.dragHint']({ field: field.label })}</span>
 		{/if}
-		{#if !field.choices}
+		{#if !field.choices && !field.readOnly}
 			<button class="add" onclick={addGroup}><Plus size={14} /> {m['dashboard.newGroup']()}</button>
 		{/if}
 	</div>
@@ -748,7 +748,13 @@
 						class="card-body"
 						style="min-height: min({bodyReserve(card.total)}px, var(--card-body-cap))"
 						onscroll={(e) => onBodyScroll(card.key, e)}
-						use:dndzone={{ items: card.spools, type: 'spool', flipDurationMs: FLIP, dropTargetStyle: {} }}
+						use:dndzone={{
+							items: card.spools,
+							type: 'spool',
+							flipDurationMs: FLIP,
+							dropTargetStyle: {},
+							dropFromOthersDisabled: !!field.readOnly
+						}}
 						onconsider={(e) => spoolConsider(idx, e as CustomEvent<DndEvent<Spool>>)}
 						onfinalize={(e) => spoolFinalize(idx, e as CustomEvent<DndEvent<Spool>>)}
 					>
