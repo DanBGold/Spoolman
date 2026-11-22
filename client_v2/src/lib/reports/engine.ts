@@ -55,6 +55,8 @@ export interface ReportLine {
 	count?: number;
 	/** One value per column: row values, or aggregates on subtotal/total lines. */
 	cells: CellValue[];
+	/** Data rows: the id of the spool, filament or vendor (matching the report's entity). */
+	itemId?: number;
 }
 
 export interface ReportResult {
@@ -366,7 +368,8 @@ export function buildReport(design: ReportDesign, data: ReportData, fields: Repo
 
 	function emit(from: number, to: number, level: number) {
 		if (level >= groupFields.length) {
-			for (let i = from; i < to; i++) lines.push({ type: 'row', level, cells: values[i] });
+			for (let i = from; i < to; i++)
+				lines.push({ type: 'row', level, cells: values[i], itemId: id(rows[i]) });
 			return;
 		}
 		const g = groupFields[level];

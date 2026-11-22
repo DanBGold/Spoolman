@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { beforeNavigate } from '$app/navigation';
 	import Button from '$components/Button.svelte';
 	import ReportDesigner from '$components/reports/ReportDesigner.svelte';
 	import { reportDesigns } from '$lib/stores/reportDesigns.svelte';
@@ -9,12 +10,15 @@
 	import { PAPER_MM, printHtml, renderReportHtml } from '$lib/reports/html';
 	import { setReportEntity, type ReportDesign, type ReportEntity } from '$lib/reports/types';
 	import { toasts } from '$lib/stores/toasts.svelte';
+	import { libraryHref } from '$lib/library/params';
 	import * as m from '$lib/paraglide/messages';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Printer from '@lucide/svelte/icons/printer';
 	import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Check from '@lucide/svelte/icons/check';
 
 	let selectedId = $state<string | null>(null);
 	let working = $state<ReportDesign | null>(null);
@@ -58,12 +62,41 @@
 	}
 	const dirty = $derived(working !== null && JSON.stringify(working) !== savedSnapshot);
 
+	/** Ask before throwing away unsaved edits; true when it's fine to proceed. */
+	function okToDiscard(): boolean {
+		return !dirty || confirm(m['reports.unsavedConfirm']());
+	}
+
+	// Picking a report from the list (the current one included) loads its saved
+	// version and refreshes the inventory, after checking for unsaved edits.
+	let menuOpen = $state(false);
+	function chooseDesign(id: string) {
+		menuOpen = false;
+		if (!okToDiscard()) return;
+		selectDesign(id);
+		void reload();
+	}
+	function closeMenuOnOutside(e: MouseEvent) {
+		if (menuOpen && !(e.target as HTMLElement).closest('.picker')) menuOpen = false;
+	}
+
+	// Leaving the page (another tab, a link, closing or reloading the browser tab).
+	beforeNavigate((nav) => {
+		if (!dirty) return;
+		if (nav.type === 'leave') {
+			nav.cancel(); // shows the browser's own "leave site?" dialog
+			return;
+		}
+		if (!confirm(m['reports.unsavedConfirm']())) nav.cancel();
+	});
+
 	async function newDesign() {
+		if (!okToDiscard()) return;
 		const d = await reportDesigns.create(working?.entity ?? 'spool');
 		selectDesign(d.id);
 	}
 	async function duplicate() {
-		if (!selectedId) return;
+		if (!selectedId || !okToDiscard()) return;
 		const d = await reportDesigns.duplicate(selectedId);
 		if (d) selectDesign(d.id);
 	}
@@ -106,7 +139,12 @@
 	let previewHtml = $state('');
 	$effect(() => {
 		if (!working || !result || !loaded) return;
-		const html = renderReportHtml(working, result, { generatedAt: loaded.loadedAt, preview: true });
+		const entity = working.entity;
+		const html = renderReportHtml(working, result, {
+			generatedAt: loaded.loadedAt,
+			preview: true,
+			rowHref: (id) => libraryHref(entity, String(id))
+		});
 		const t = setTimeout(() => (previewHtml = html), 180);
 		return () => clearTimeout(t);
 	});
@@ -120,6 +158,17 @@
 		return ((working.page.landscape ? h : w) * 96) / 25.4 + 40;
 	});
 	const scale = $derived(Math.min(1, paneWidth / pagePx));
+
+	// Clicking a data row in the preview opens that item in the library, in a new tab.
+	function attachRowLinks(frame: HTMLIFrameElement) {
+		const doc = frame.contentDocument;
+		if (!doc) return;
+		doc.addEventListener('click', (e) => {
+			const row = (e.target as Element | null)?.closest?.('tr[data-href]');
+			const href = row?.getAttribute('data-href');
+			if (href) window.open(href, '_blank', 'noopener');
+		});
+	}
 
 	function print() {
 		if (!working || !result) return;
@@ -149,6 +198,14 @@
 	];
 </script>
 
+<svelte:window
+	onclick={closeMenuOnOutside}
+	onkeydown={(e) => e.key === 'Escape' && (menuOpen = false)}
+	onbeforeunload={(e) => {
+		if (dirty) e.preventDefault();
+	}}
+/>
+
 <svelte:head>
 	<title>{m['documentTitle.reports.list']()}</title>
 </svelte:head>
@@ -159,19 +216,36 @@
 		<div class="subtitle">{m['reports.designerDesc']()}</div>
 
 		<div class="toolbar">
-			<select
-				aria-label={m['reports.selectDesign']()}
-				value={selectedId ?? ''}
-				onchange={(e) => selectDesign(e.currentTarget.value)}
-				disabled={reportDesigns.designs.length === 0}
-			>
-				{#if reportDesigns.designs.length === 0}
-					<option value="">{m['reports.noDesignsOption']()}</option>
+			<div class="picker">
+				<button
+					class="picker-btn"
+					aria-label={m['reports.selectDesign']()}
+					aria-haspopup="listbox"
+					aria-expanded={menuOpen}
+					disabled={reportDesigns.designs.length === 0}
+					onclick={() => (menuOpen = !menuOpen)}
+				>
+					<span class="picker-name"
+						>{reportDesigns.designs.find((d) => d.id === selectedId)?.name ??
+							m['reports.noDesignsOption']()}</span
+					>
+					<ChevronDown size={15} />
+				</button>
+				{#if menuOpen}
+					<ul class="picker-menu" role="listbox" aria-label={m['reports.selectDesign']()}>
+						{#each reportDesigns.designs as d (d.id)}
+							<li role="option" aria-selected={d.id === selectedId}>
+								<button onclick={() => chooseDesign(d.id)}>
+									<span class="tick"
+										>{#if d.id === selectedId}<Check size={14} />{/if}</span
+									>
+									{d.name}
+								</button>
+							</li>
+						{/each}
+					</ul>
 				{/if}
-				{#each reportDesigns.designs as d (d.id)}
-					<option value={d.id}>{d.name}</option>
-				{/each}
-			</select>
+			</div>
 
 			{#if working}
 				<input class="name" bind:value={working.name} placeholder={m['reports.designName']()} />
@@ -223,6 +297,7 @@
 						>
 						<Button onclick={print} disabled={!result}><Printer size={15} /> {m['reports.print']()}</Button>
 					</div>
+					<div class="row-hint">{m['reports.rowHint']()}</div>
 					<div class="pane" bind:clientWidth={paneWidth} bind:clientHeight={paneHeight}>
 						{#if loadError}
 							<div class="state">
@@ -236,6 +311,7 @@
 								title={m['reports.preview']()}
 								srcdoc={previewHtml}
 								sandbox="allow-same-origin"
+								onload={(e) => attachRowLinks(e.currentTarget as HTMLIFrameElement)}
 								style="width:{pagePx}px; height:{paneHeight / scale}px; transform:scale({scale});"
 							></iframe>
 						{/if}
@@ -279,7 +355,68 @@
 		margin-bottom: 18px;
 		flex-wrap: wrap;
 	}
-	.toolbar select,
+	.picker {
+		position: relative;
+	}
+	.picker-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-width: 180px;
+		max-width: 300px;
+		justify-content: space-between;
+		cursor: pointer;
+	}
+	.picker-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.picker-menu {
+		position: absolute;
+		top: calc(100% + 4px);
+		left: 0;
+		z-index: 20;
+		min-width: 100%;
+		max-height: 360px;
+		overflow-y: auto;
+		margin: 0;
+		padding: 4px;
+		list-style: none;
+		background: var(--surface-raised);
+		border: 1px solid var(--border-strong);
+		border-radius: 8px;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+	}
+	.picker-menu button {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		background: none;
+		border: none;
+		border-radius: 5px;
+		padding: 7px 10px 7px 6px;
+		color: var(--text);
+		font-size: 13px;
+		text-align: left;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.picker-menu button:hover {
+		background: var(--accent-wash);
+	}
+	.tick {
+		display: inline-flex;
+		width: 16px;
+		color: var(--accent-soft);
+	}
+	.row-hint {
+		font-size: 11.5px;
+		color: var(--text-dim);
+		margin-top: -4px;
+	}
+	.picker-btn,
 	.name {
 		border: 1px solid var(--border-strong);
 		background: none;
@@ -294,7 +431,7 @@
 		min-width: 160px;
 		max-width: 280px;
 	}
-	.toolbar select:focus,
+	.picker-btn:focus,
 	.name:focus {
 		outline: none;
 		border-color: var(--accent);

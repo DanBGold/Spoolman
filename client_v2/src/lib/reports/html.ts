@@ -85,7 +85,12 @@ function summaryRow(line: ReportLine, columns: ResolvedColumn[], cls: string): s
 	return html + '</tr>';
 }
 
-function tableHtml(lines: ReportLine[], columns: ResolvedColumn[], design: ReportDesign): string {
+function tableHtml(
+	lines: ReportLine[],
+	columns: ResolvedColumn[],
+	design: ReportDesign,
+	rowHref?: (id: number) => string
+): string {
 	const totalWidth = columns.reduce((a, c) => a + c.width, 0) || 1;
 	const cols = columns
 		.map((c) => `<col style="width:${((c.width / totalWidth) * 100).toFixed(2)}%">`)
@@ -99,8 +104,12 @@ function tableHtml(lines: ReportLine[], columns: ResolvedColumn[], design: Repor
 				body += `<tr class="grp l${line.level}"><td colspan="${columns.length}" style="padding-left:${6 + line.level * 14}px">${escapeHtml(line.label ?? '')} <span class="n">(${escapeHtml(itemCount(line.count ?? 0))})</span></td></tr>`;
 				break;
 			case 'row': {
-				const cls = design.page.stripes && stripe++ % 2 === 1 ? ' class="alt"' : '';
-				body += `<tr${cls}>${columns.map((c, i) => `<td class="a-${c.align}">${cellHtml(line.cells[i], c)}</td>`).join('')}</tr>`;
+				const classes = [design.page.stripes && stripe++ % 2 === 1 ? 'alt' : '', rowHref ? 'lnk' : '']
+					.filter(Boolean)
+					.join(' ');
+				const href =
+					rowHref && line.itemId !== undefined ? ` data-href="${escapeHtml(rowHref(line.itemId))}"` : '';
+				body += `<tr${classes ? ` class="${classes}"` : ''}${href}>${columns.map((c, i) => `<td class="a-${c.align}">${cellHtml(line.cells[i], c)}</td>`).join('')}</tr>`;
 				break;
 			}
 			case 'subtotal':
@@ -128,6 +137,8 @@ export interface HtmlOptions {
 	generatedAt: Date;
 	/** Preview adds screen-only page framing around the printed content. */
 	preview?: boolean;
+	/** Preview only: link for a data row (shown as a clickable row with `data-href`). */
+	rowHref?: (id: number) => string;
 }
 
 export function renderReportHtml(design: ReportDesign, result: ReportResult, opts: HtmlOptions): string {
@@ -148,7 +159,10 @@ export function renderReportHtml(design: ReportDesign, result: ReportResult, opt
 	const chunks =
 		design.pageBreakPerGroup && design.groupBy.length > 0 ? chunkByTopGroup(result.lines) : [result.lines];
 	const tables = chunks
-		.map((c, i) => `<div class="chunk${i > 0 ? ' brk' : ''}">${tableHtml(c, result.columns, design)}</div>`)
+		.map(
+			(c, i) =>
+				`<div class="chunk${i > 0 ? ' brk' : ''}">${tableHtml(c, result.columns, design, opts.preview ? opts.rowHref : undefined)}</div>`
+		)
 		.join('');
 
 	const fs = Math.min(Math.max(page.fontSize || 9, 5), 24);
@@ -183,6 +197,8 @@ ${
 	opts.preview
 		? `@media screen {
   html { background: #8a8f96; }
+  tr.lnk { cursor: pointer; }
+  tr.lnk:hover td { background: #fff4d6; }
   body { width: ${pw}mm; min-height: ${ph}mm; margin: 16px auto; padding: ${page.margin}mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.35); }
 }`
 		: ''
