@@ -14,6 +14,7 @@
 		{ href: '/', label: m['nav.library'] },
 		{ href: '/dashboard', label: m['dashboard.dashboard'] },
 		{ href: '/labels', label: m['nav.labels'] },
+		{ href: '/reports', label: m['nav.reports'] },
 		{ href: '/settings', label: m['settings.header'] }
 	] satisfies { href: Pathname; label: () => string }[];
 
