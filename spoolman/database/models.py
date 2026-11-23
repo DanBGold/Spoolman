@@ -64,6 +64,9 @@ class Filament(Base):
     color_hex: Mapped[str | None] = mapped_column(String(8))
     multi_color_hexes: Mapped[str | None] = mapped_column(String(128))
     multi_color_direction: Mapped[str | None] = mapped_column(String(16))
+    td: Mapped[float | None] = mapped_column(
+        comment="Transmission distance (HueForge TD), 0.0 = solid/opaque to 100.0 = transparent.",
+    )
     external_id: Mapped[str | None] = mapped_column(String(256))
     extra: Mapped[list["FilamentField"]] = relationship(
         back_populates="filament",

@@ -25,6 +25,7 @@ export interface RawFilament {
 	material?: string | null;
 	price?: number | null;
 	density: number;
+	td?: number;
 	diameter: number;
 	weight?: number | null;
 	spool_weight?: number | null;
@@ -293,6 +294,14 @@ const FILAMENT_FIELDS: ReportField[] = [
 			const c = filamentColors(r.filament);
 			return c.length ? c : null;
 		}
+	},
+	{
+		key: 'filament.td',
+		group: 'filament',
+		label: m['filament.fields.td'],
+		kind: 'number',
+		decimals: 1,
+		get: (r) => num(r.filament?.td)
 	},
 	{
 		key: 'filament.diameter',

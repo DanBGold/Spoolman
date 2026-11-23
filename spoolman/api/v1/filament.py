@@ -118,6 +118,16 @@ class FilamentParameters(BaseModel):
         description=("Type of multi-color filament. Only set if the color_hex field contains multiple colors. "),
         examples=["coaxial", "longitudinal"],
     )
+    td: float | None = Field(
+        None,
+        ge=0,
+        le=100,
+        description=(
+            "Transmission distance (TD) as used by HueForge: how far light passes through the "
+            "filament, from 0.0 (solid, opaque) to 100.0 (transparent)."
+        ),
+        examples=[4.9],
+    )
     external_id: str | None = Field(
         None,
         max_length=256,
@@ -497,6 +507,7 @@ async def create(  # noqa: ANN201
         color_hex=body.color_hex,
         multi_color_hexes=body.multi_color_hexes,
         multi_color_direction=body.multi_color_direction,
+        td=body.td,
         external_id=body.external_id,
         extra=body.extra,
     )

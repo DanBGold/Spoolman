@@ -99,6 +99,7 @@ def test_from_db_survives_a_row_written_before_the_fix():
         color_hex="#FF000000",
         multi_color_hexes=None,
         multi_color_direction=None,
+        td=None,
         external_id=None,
         extra=[],
         tags=[],

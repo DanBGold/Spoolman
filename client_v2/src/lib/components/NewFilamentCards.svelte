@@ -220,6 +220,8 @@
 						draft.colors = v.colors;
 						draft.multiColorDirection = v.direction;
 					}}
+					td={draft.td.trim() === '' ? undefined : Number(draft.td)}
+					ontd={(v) => (draft.td = v === undefined ? '' : String(v))}
 				/>
 			</div>
 			{#if err('colorHex')}<span class="err">{err('colorHex')}</span>{/if}

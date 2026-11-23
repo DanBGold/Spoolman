@@ -52,6 +52,8 @@ export interface Filament {
 	colors: string[];
 	/** Layout of a multi-color filament; undefined for single-color filaments. */
 	multiColorDirection?: MultiColorDirection;
+	/** Transmission distance (HueForge TD): 0.0 = solid/opaque … 100.0 = transparent. */
+	td?: number;
 	diameter: number;
 	density: number;
 	nozzleTemp: number;

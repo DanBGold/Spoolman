@@ -47,6 +47,8 @@ export interface NewFilamentDraft {
 	/** One or more hex colors (with or without '#'); 2+ makes it multi-color. */
 	colors?: string[];
 	multiColorDirection?: MultiColorDirection;
+	/** Transmission distance, 0–100. */
+	td?: number;
 	nozzleTemp?: number;
 	bedTemp?: number;
 	price?: number;
@@ -351,6 +353,7 @@ class HttpSpoolSource {
 			diameter: draft.diameter,
 			weight: draft.weight || undefined,
 			spool_weight: draft.spoolWeight,
+			td: draft.td,
 			settings_extruder_temp: draft.nozzleTemp,
 			settings_bed_temp: draft.bedTemp,
 			price: draft.price,

@@ -353,6 +353,8 @@
 							colors={filament.colors}
 							direction={filament.multiColorDirection}
 							onchange={(v) => set({ colors: v.colors, multiColorDirection: v.direction })}
+							td={filament.td}
+							ontd={(v) => set({ td: v })}
 						/>
 					{/key}
 				</Field>

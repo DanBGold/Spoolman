@@ -293,6 +293,16 @@ class Filament(BaseModel):
         description=("Type of multi-color filament. Only set if the multi_color_hexes field is set."),
         examples=["coaxial", "longitudinal"],
     )
+    td: float | None = Field(
+        None,
+        ge=0,
+        le=100,
+        description=(
+            "Transmission distance (TD) as used by HueForge: how far light passes through the "
+            "filament, from 0.0 (solid, opaque) to 100.0 (transparent)."
+        ),
+        examples=[4.9],
+    )
     external_id: str | None = Field(
         None,
         max_length=256,
@@ -336,6 +346,7 @@ class Filament(BaseModel):
             multi_color_direction=(
                 MultiColorDirection(item.multi_color_direction) if item.multi_color_direction is not None else None
             ),
+            td=item.td,
             external_id=item.external_id,
             extra={field.key: field.value for field in item.extra},
             tags=[Tag.from_db(tag) for tag in item.tags],

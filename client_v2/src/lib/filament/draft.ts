@@ -24,6 +24,8 @@ export interface FilamentDraft {
 	material: string;
 	colors: string[];
 	multiColorDirection: MultiColorDirection | undefined;
+	/** Transmission distance as typed; '' = not known. */
+	td: string;
 	density: string;
 	diameter: string;
 	nozzleTemp: string;
@@ -55,6 +57,7 @@ export function emptyFilamentDraft(name = ''): FilamentDraft {
 		material: '',
 		colors: [],
 		multiColorDirection: undefined,
+		td: '',
 		density: '',
 		diameter: DEFAULT_DIAMETER,
 		nozzleTemp: '',
@@ -78,6 +81,9 @@ export function filamentDraftFrom(f: Filament, vendorName: string): FilamentDraf
 		material: f.material,
 		colors: [],
 		multiColorDirection: undefined,
+		// TD belongs to the colour (a different pigment transmits differently), so it is
+		// cleared along with it.
+		td: '',
 		density: String(f.density),
 		diameter: String(f.diameter),
 		nozzleTemp: f.nozzleTemp != null ? String(f.nozzleTemp) : '',
@@ -164,6 +170,7 @@ export function filamentDraftErrors(draft: FilamentDraft, weights?: FilamentWeig
 	e.nozzleTemp = numErr(draft.nozzleTemp, { min: 0 });
 	e.bedTemp = numErr(draft.bedTemp, { min: 0 });
 	if (draft.colors.some((c) => c.trim() && !HEX_RE.test(c.trim()))) e.colorHex = m['validation.hexDigits']();
+	else if (numErr(draft.td, { min: 0, max: 100 })) e.colorHex = numErr(draft.td, { min: 0, max: 100 });
 	if (weights) {
 		e.netWeight = numErr(weights.weight, { gt: 0 });
 		e.spoolWeight = numErr(weights.spoolWeight, { min: 0 });
@@ -196,6 +203,7 @@ export function toNewFilamentDraft(
 		spoolWeight: num(weights.spoolWeight),
 		colors: draft.colors,
 		multiColorDirection: draft.multiColorDirection,
+		td: num(draft.td),
 		nozzleTemp: num(draft.nozzleTemp),
 		bedTemp: num(draft.bedTemp),
 		price: num(weights.price),

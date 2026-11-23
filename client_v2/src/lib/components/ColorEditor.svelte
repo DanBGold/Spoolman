@@ -16,8 +16,29 @@
 		colors: string[];
 		direction?: MultiColorDirection;
 		onchange: (v: { colors: string[]; direction?: MultiColorDirection }) => void;
+		/** Transmission distance (HueForge TD), 0.0 = solid … 100.0 = transparent. One per
+		 *  filament, so it is shown on the first colour row only (between the hex code and
+		 *  the opacity). Omit `ontd` to hide it. */
+		td?: number;
+		ontd?: (v: number | undefined) => void;
 	}
-	let { colors, direction, onchange }: Props = $props();
+	let { colors, direction, onchange, td, ontd }: Props = $props();
+
+	// Follows the prop, but updates at once on input so the slider and box agree
+	// while the parent saves (a writable derived: reassigned locally, reset by the prop).
+	let tdValue = $derived<number | undefined>(td);
+	function setTd(v: number | undefined) {
+		if (v !== undefined && !Number.isFinite(v)) return;
+		const next = v === undefined ? undefined : Math.round(Math.max(0, Math.min(100, v)) * 10) / 10;
+		tdValue = next;
+		ontd?.(next);
+	}
+	// Solid colour at TD 0 fading to see-through at TD 100, over the same checkerboard
+	// as the opacity slider (mirrored: opacity runs transparent -> solid).
+	function tdTrack(h: string): string {
+		const rgb = normalizeHex(h)?.slice(0, 6) ?? '9AA0A6';
+		return `background:linear-gradient(to right,#${rgb}FF,#${rgb}00) border-box no-repeat,${ALPHA_CHECKER}`;
+	}
 
 	// Initialised once from the props, then owned locally — the parent remounts this
 	// component (`{#key ...}`) when it switches to a different filament, so capturing
@@ -158,6 +179,38 @@
 						>
 					{/if}
 				</span>
+				{#if ontd}
+					{#if i === 0}
+						<span class="td">
+							<input
+								class="alpha-slider"
+								class:unset={tdValue === undefined}
+								type="range"
+								min="0"
+								max="100"
+								step="0.1"
+								value={tdValue ?? 0}
+								style={tdTrack(c)}
+								oninput={(e) => setTd(e.currentTarget.valueAsNumber)}
+								aria-label={m['filament.fields.td']()}
+								title={m['filament.fieldsHelp.td']()}
+							/>
+							<NumberInput
+								dense
+								width="84px"
+								unit="TD"
+								min={0}
+								max={100}
+								step={0.1}
+								value={tdValue ?? ''}
+								placeholder="—"
+								ariaLabel={m['filament.fields.td']()}
+								onchange={(v) => setTd(v)}
+								onclear={() => setTd(undefined)}
+							/>
+						</span>
+					{/if}
+				{/if}
 				<span class="alpha">
 					<input
 						class="alpha-slider"
@@ -322,6 +375,22 @@
 	.hex:focus {
 		border-color: var(--accent);
 		outline: none;
+	}
+	/* Wide enough that, in a narrow pane, TD takes a line of its own between the
+	   hex code and the opacity rather than squeezing its slider beside the hex. */
+	.td {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		flex: 1 1 200px;
+		min-width: 200px;
+	}
+	/* No TD recorded yet: the thumb sits at 0 but reads as "not set". */
+	.alpha-slider.unset::-webkit-slider-thumb {
+		opacity: 0.35;
+	}
+	.alpha-slider.unset::-moz-range-thumb {
+		opacity: 0.35;
 	}
 	.alpha {
 		display: inline-flex;

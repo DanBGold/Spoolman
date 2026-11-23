@@ -64,6 +64,7 @@ export function mapFilament(f: Json): Filament {
 		material: f.material ?? '',
 		colors: colorsFromApi(f),
 		multiColorDirection: f.multi_color_direction ?? undefined,
+		td: f.td ?? undefined,
 		diameter: f.diameter ?? 0,
 		density: f.density ?? 0,
 		nozzleTemp: f.settings_extruder_temp ?? 0,
@@ -249,6 +250,8 @@ export function filamentPatchToApi(patch: FilamentPatch): Json {
 	// Colours and direction always travel together (the inspector pushes both), so
 	// keying off `colors` keeps the single/multi request self-consistent.
 	if ('colors' in patch) Object.assign(out, colorFieldsToApi(patch.colors, patch.multiColorDirection));
+	// Blank means "TD not known" — an explicit null clears it.
+	if ('td' in patch) out.td = patch.td ?? null;
 	if ('diameter' in patch) out.diameter = patch.diameter;
 	if ('density' in patch) out.density = patch.density;
 	if ('weight' in patch) out.weight = patch.weight;
